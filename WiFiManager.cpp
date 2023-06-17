@@ -10,6 +10,7 @@
  * @license MIT
  */
 
+#include "ArduinoJson.h"
 #include "WiFiManager.h"
 
 #if defined(ESP8266) || defined(ESP32)
@@ -645,6 +646,7 @@ void WiFiManager::setupHTTPServer(){
   server->on(WM_G(R_wifinoscan), std::bind(&WiFiManager::handleWifi, this, false));
   server->on(WM_G(R_wifisave),   std::bind(&WiFiManager::handleWifiSave, this));
   server->on(WM_G(R_info),       std::bind(&WiFiManager::handleInfo, this));
+  server->on(WM_G(R_infojson),   std::bind(&WiFiManager::handleInfoJson, this));
   server->on(WM_G(R_param),      std::bind(&WiFiManager::handleParam, this));
   server->on(WM_G(R_paramsave),  std::bind(&WiFiManager::handleParamSave, this));
   server->on(WM_G(R_restart),    std::bind(&WiFiManager::handleReset, this));
@@ -1295,6 +1297,10 @@ void WiFiManager::HTTPSend(const String &content){
   server->send(200, FPSTR(HTTP_HEAD_CT), content);
 }
 
+void WiFiManager::HTTPSendJson(const String &content){
+  server->send(200, FPSTR(HTTP_HEAD_JSON_CT), content);
+}
+
 /** 
  * HTTPD handler for page requests
  */
@@ -1326,6 +1332,7 @@ void WiFiManager::handleRequest() {
  * HTTPD CALLBACK root or redirect to captive portal
  */
 void WiFiManager::handleRoot() {
+  // TODO: change this to compressed static react app
   #ifdef WM_DEBUG_LEVEL
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Root"));
   #endif
@@ -1341,7 +1348,7 @@ void WiFiManager::handleRoot() {
   reportStatus(page);
   page += FPSTR(HTTP_END);
 
-  HTTPSend(page);
+  HTTPSend(page); // root
   if(_preloadwifiscan) WiFi_scanNetworks(_scancachetime,true); // preload wifiscan throttled, async
   // @todo buggy, captive portals make a query on every page load, causing this to run every time in addition to the real page load
   // I dont understand why, when you are already in the captive portal, I guess they want to know that its still up and not done or gone
@@ -1362,46 +1369,8 @@ void WiFiManager::handleWifi(boolean scan) {
     // DEBUG_WM(DEBUG_DEV,"refresh flag:",server->hasArg(F("refresh")));
     #endif
     WiFi_scanNetworks(server->hasArg(F("refresh")),false); //wifiscan, force if arg refresh
-    page += getScanItemOut();
   }
-  String pitem = "";
-
-  pitem = FPSTR(HTTP_FORM_START);
-  pitem.replace(FPSTR(T_v), F("wifisave")); // set form action
-  page += pitem;
-
-  pitem = FPSTR(HTTP_FORM_WIFI);
-  pitem.replace(FPSTR(T_v), WiFi_SSID());
-
-  if(_showPassword){
-    pitem.replace(FPSTR(T_p), WiFi_psk());
-  }
-  else if(WiFi_psk() != ""){
-    pitem.replace(FPSTR(T_p),FPSTR(S_passph));    
-  }
-  else {
-    pitem.replace(FPSTR(T_p),"");    
-  }
-
-  page += pitem;
-
-  page += getStaticOut();
-  page += FPSTR(HTTP_FORM_WIFI_END);
-  if(_paramsInWifi && _paramsCount>0){
-    page += FPSTR(HTTP_FORM_PARAM_HEAD);
-    page += getParamOut();
-  }
-  page += FPSTR(HTTP_FORM_END);
-  page += FPSTR(HTTP_SCAN_LINK);
-  if(_showBack) page += FPSTR(HTTP_BACKBTN);
-  reportStatus(page);
-  page += FPSTR(HTTP_END);
-
-  HTTPSend(page);
-
-  #ifdef WM_DEBUG_LEVEL
-  DEBUG_WM(DEBUG_DEV,F("Sent config page"));
-  #endif
+  HTTPSendJson(getScanItemJson());
 }
 
 /**
@@ -1551,8 +1520,8 @@ bool WiFiManager::WiFi_scanNetworks(bool force,bool async){
     return false;
 }
 
-String WiFiManager::WiFiManager::getScanItemOut(){
-    String page;
+String WiFiManager::WiFiManager::getScanItemJson(){
+    String json;
 
     if(!_numNetworks) WiFi_scanNetworks(); // scan in case this gets called before any scans
 
@@ -1561,8 +1530,8 @@ String WiFiManager::WiFiManager::getScanItemOut(){
       #ifdef WM_DEBUG_LEVEL
       DEBUG_WM(F("No networks found"));
       #endif
-      page += FPSTR(S_nonetworks); // @token nonetworks
-      page += F("<br/><br/>");
+      // empty array
+      json = "[]";
     }
     else {
       #ifdef WM_DEBUG_LEVEL
@@ -1583,13 +1552,6 @@ String WiFiManager::WiFiManager::getScanItemOut(){
         }
       }
 
-      /* test std:sort
-        std::sort(indices, indices + n, [](const int & a, const int & b) -> bool
-        {
-        return WiFi.RSSI(a) > WiFi.RSSI(b);
-        });
-       */
-
       // remove duplicates ( must be RSSI sorted )
       if (_removeDuplicateAPs) {
         String cssid;
@@ -1607,68 +1569,30 @@ String WiFiManager::WiFiManager::getScanItemOut(){
         }
       }
 
-      // token precheck, to speed up replacements on large ap lists
-      String HTTP_ITEM_STR = FPSTR(HTTP_ITEM);
-
-      // toggle icons with percentage
-      HTTP_ITEM_STR.replace("{qp}", FPSTR(HTTP_ITEM_QP));
-      HTTP_ITEM_STR.replace("{h}",_scanDispOptions ? "" : "h");
-      HTTP_ITEM_STR.replace("{qi}", FPSTR(HTTP_ITEM_QI));
-      HTTP_ITEM_STR.replace("{h}",_scanDispOptions ? "h" : "");
- 
-      // set token precheck flags
-      bool tok_r = HTTP_ITEM_STR.indexOf(FPSTR(T_r)) > 0;
-      bool tok_R = HTTP_ITEM_STR.indexOf(FPSTR(T_R)) > 0;
-      bool tok_e = HTTP_ITEM_STR.indexOf(FPSTR(T_e)) > 0;
-      bool tok_q = HTTP_ITEM_STR.indexOf(FPSTR(T_q)) > 0;
-      bool tok_i = HTTP_ITEM_STR.indexOf(FPSTR(T_i)) > 0;
-      
-      //display networks in page
+      DynamicJsonDocument jsonBuffer(1024);
+      // display networks in page
+      int index = 0;
       for (int i = 0; i < n; i++) {
-        if (indices[i] == -1) continue; // skip dups
-
-        #ifdef WM_DEBUG_LEVEL
-        DEBUG_WM(DEBUG_VERBOSE,F("AP: "),(String)WiFi.RSSI(indices[i]) + " " + (String)WiFi.SSID(indices[i]));
-        #endif
-
         int rssiperc = getRSSIasQuality(WiFi.RSSI(indices[i]));
-        uint8_t enc_type = WiFi.encryptionType(indices[i]);
-
-        if (_minimumQuality == -1 || _minimumQuality < rssiperc) {
-          String item = HTTP_ITEM_STR;
-          if(WiFi.SSID(indices[i]) == ""){
-            // Serial.println(WiFi.BSSIDstr(indices[i]));
-            continue; // No idea why I am seeing these, lets just skip them for now
-          }
-          item.replace(FPSTR(T_V), htmlEntities(WiFi.SSID(indices[i]))); // ssid no encoding
-          item.replace(FPSTR(T_v), htmlEntities(WiFi.SSID(indices[i]),true)); // ssid no encoding
-          if(tok_e) item.replace(FPSTR(T_e), encryptionTypeStr(enc_type));
-          if(tok_r) item.replace(FPSTR(T_r), (String)rssiperc); // rssi percentage 0-100
-          if(tok_R) item.replace(FPSTR(T_R), (String)WiFi.RSSI(indices[i])); // rssi db
-          if(tok_q) item.replace(FPSTR(T_q), (String)int(round(map(rssiperc,0,100,1,4)))); //quality icon 1-4
-          if(tok_i){
-            if (enc_type != WM_WIFIOPEN) {
-              item.replace(FPSTR(T_i), F("l"));
-            } else {
-              item.replace(FPSTR(T_i), "");
-            }
-          }
+        if (
+          indices[i] == -1 ||
+          WiFi.SSID(indices[i]) == "" || 
+          (_minimumQuality != -1 && _minimumQuality > rssiperc)
+        ) {
           #ifdef WM_DEBUG_LEVEL
-          DEBUG_WM(DEBUG_DEV,item);
+          DEBUG_WM(DEBUG_VERBOSE,F("Skipping"));
           #endif
-          page += item;
-          delay(0);
-        } else {
-          #ifdef WM_DEBUG_LEVEL
-          DEBUG_WM(DEBUG_VERBOSE,F("Skipping , does not meet _minimumQuality"));
-          #endif
+          continue;
         }
-
+        jsonBuffer[index]["ssid"] = WiFi.SSID(indices[i]);
+        jsonBuffer[index]["rssi"] = WiFi.RSSI(indices[i]);
+        jsonBuffer[index]["auth"] = AUTH_MODE_NAMES[WiFi.encryptionType(indices[i])];
+        ++index;
+        delay(0);
       }
-      page += FPSTR(HTTP_BR);
+      serializeJson(jsonBuffer, json);
     }
-
-    return page;
+    return json;
 }
 
 String WiFiManager::getIpForm(String id, String title, String value){
@@ -2069,6 +1993,293 @@ void WiFiManager::handleInfo() {
   #ifdef WM_DEBUG_LEVEL
   DEBUG_WM(DEBUG_DEV,F("Sent info page"));
   #endif
+}
+
+void WiFiManager::handleInfoJson() {
+  #ifdef WM_DEBUG_LEVEL
+  DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Info"));
+  #endif
+  handleRequest();
+
+  // todo
+  // reportStatus(page);
+
+  uint16_t infos = 0;
+
+  //@todo convert to enum or refactor to strings
+  //@todo wrap in build flag to remove all info code for memory saving
+  #ifdef ESP8266
+    infos = 32;
+    String infoids[] = {
+      F("esphead"),
+      F("uptime"),
+      F("chipid"),
+      F("fchipid"),
+      F("idesize"),
+      F("flashsize"),
+      F("corever"),
+      F("bootver"),
+      F("cpufreq"),
+      F("freeheap"),
+      F("memsketch"),
+      F("memsmeter"),
+      F("lastreset"),
+      F("wifihead"),
+      F("conx"),
+      F("stassid"),
+      F("staip"),
+      F("stagw"),
+      F("stasub"),
+      F("dnss"),
+      F("host"),
+      F("stamac"),
+      F("autoconx"),
+      F("wifiaphead"),
+      F("apssid"),
+      F("apip"),
+      F("apbssid"),
+      F("apmac"),
+      F("aboutver"),
+      F("aboutarduinover"),
+      F("aboutidfver"),
+      F("aboutdate")
+    };
+
+  #elif defined(ESP32)
+    // add esp_chip_info ?
+    infos = 31;
+    String infoids[] = {
+      F("esphead"),
+      F("uptime"),
+      F("chipid"),
+      F("chiprev"),
+      F("idesize"),
+      F("flashsize"),      
+      F("cpufreq"),
+      F("freeheap"),
+      F("memsketch"),
+      F("memsmeter"),      
+      F("lastreset"),
+      F("temp"),
+      // F("hall"),
+      F("wifihead"),
+      F("conx"),
+      F("stassid"),
+      F("staip"),
+      F("stagw"),
+      F("stasub"),
+      F("dnss"),
+      F("host"),
+      F("stamac"),
+      F("apssid"),
+      F("wifiaphead"),
+      F("apip"),
+      F("apmac"),
+      F("aphost"),
+      F("apbssid"),
+      F("aboutver"),
+      F("aboutarduinover"),
+      F("aboutidfver"),
+      F("aboutdate")
+    };
+  #endif
+
+  DynamicJsonDocument jsonBuffer(1024);
+  for(size_t i=0; i<infos;i++){
+    if(infoids[i] != NULL) {
+      jsonBuffer[infoids[i]] = getInfoDataRaw(infoids[i]);
+    }
+  }
+
+  String json;
+  serializeJson(jsonBuffer, json);
+  HTTPSendJson(json);
+
+  #ifdef WM_DEBUG_LEVEL
+  DEBUG_WM(DEBUG_DEV,F("Sent info page"));
+  #endif
+}
+
+String WiFiManager::getInfoDataRaw(String id){
+  if(id==F("esphead")){
+    return String(ESP.getChipModel());
+  }
+  else if(id==F("wifihead")){
+    return getModeString(WiFi.getMode());
+  }
+  else if(id==F("uptime")){
+    return String(millis() / 1000);
+  }
+  else if(id==F("chipid")){
+    return String(WIFI_getChipId(),HEX);
+  }
+  #ifdef ESP32
+  else if(id==F("chiprev")){
+      return String(ESP.getChipRevision());
+  }
+  #endif
+  #ifdef ESP8266
+  else if(id==F("fchipid")){
+      return String(ESP.getFlashChipId());
+  }
+  #endif
+  else if(id==F("idesize")){
+    return String(ESP.getFlashChipSize());
+  }
+  else if(id==F("flashsize")){
+    #ifdef ESP8266
+      return String(ESP.getFlashChipRealSize());
+    #elif defined ESP32
+      return String(ESP.getPsramSize());
+    #endif
+  }
+  else if(id==F("corever")){
+    #ifdef ESP8266
+      return String(ESP.getCoreVersion());
+    #endif      
+  }
+  #ifdef ESP8266
+  else if(id==F("bootver")){
+      return String(system_get_boot_version());
+  }
+  #endif
+  else if(id==F("cpufreq")){
+    return String(ESP.getCpuFreqMHz());
+  }
+  else if(id==F("freeheap")){
+    return String(ESP.getFreeHeap());
+  }
+  else if(id==F("memsketch") || id==F("memsmeter")){
+    return String(ESP.getSketchSize()) + String("/") + String(ESP.getSketchSize()+ESP.getFreeSketchSpace());
+  }
+  else if(id==F("lastreset")){
+    #ifdef ESP8266
+      return String(ESP.getResetReason());
+    #elif defined(ESP32) && defined(_ROM_RTC_H_)
+      // requires #include <rom/rtc.h>
+      String p;
+      for(int i=0;i<2;i++){
+        int reason = rtc_get_reset_reason(i);
+        switch (reason)
+        {
+          //@todo move to array
+          case 1  : p += (F("Vbat power on reset"));break;
+          case 3  : p += (F("Software reset digital core"));break;
+          case 4  : p += (F("Legacy watch dog reset digital core"));break;
+          case 5  : p += (F("Deep Sleep reset digital core"));break;
+          case 6  : p += (F("Reset by SLC module, reset digital core"));break;
+          case 7  : p += (F("Timer Group0 Watch dog reset digital core"));break;
+          case 8  : p += (F("Timer Group1 Watch dog reset digital core"));break;
+          case 9  : p += (F("RTC Watch dog Reset digital core"));break;
+          case 10 : p += (F("Instrusion tested to reset CPU"));break;
+          case 11 : p += (F("Time Group reset CPU"));break;
+          case 12 : p += (F("Software reset CPU"));break;
+          case 13 : p += (F("RTC Watch dog Reset CPU"));break;
+          case 14 : p += (F("for APP CPU, reseted by PRO CPU"));break;
+          case 15 : p += (F("Reset when the vdd voltage is not stable"));break;
+          case 16 : p += (F("RTC Watch dog reset digital core and rtc module"));break;
+          default : p += (F("NO_MEAN"));
+        }
+        if (i == 0) {
+          p += (";");
+        }
+      }
+      return p;
+    #endif
+  }
+  else if(id==F("apip")){
+    return WiFi.softAPIP().toString();
+  }
+  else if(id==F("apmac")){
+    return String(WiFi.softAPmacAddress());
+  }
+  #ifdef ESP32
+  else if(id==F("aphost")){
+      return WiFi.softAPgetHostname();
+  }
+  #endif
+  #ifndef WM_NOSOFTAPSSID
+  #ifdef ESP8266
+  else if(id==F("apssid")){
+    p = FPSTR(HTTP_INFO_apssid);
+    p.replace(FPSTR(T_1),htmlEntities(WiFi.softAPSSID()));
+  }
+  #endif
+  #endif
+  else if(id==F("apbssid")){
+    return String(WiFi.BSSIDstr());
+  }
+  // softAPgetHostname // esp32
+  // softAPSubnetCIDR
+  // softAPNetworkID
+  // softAPBroadcastIP
+
+  else if(id==F("stassid")){
+    return String(WiFi_SSID());
+  }
+  else if(id==F("staip")){
+    return WiFi.localIP().toString();
+  }
+  else if(id==F("stagw")){
+    return WiFi.gatewayIP().toString();
+  }
+  else if(id==F("stasub")){
+    return WiFi.subnetMask().toString();
+  }
+  else if(id==F("dnss")){
+    WiFi.dnsIP().toString();
+  }
+  else if(id==F("host")){
+    #ifdef ESP32
+      return WiFi.getHostname();
+    #else
+      return WiFi.hostname();
+    #endif
+  }
+  else if(id==F("stamac")){
+    return WiFi.macAddress();
+  }
+  else if(id==F("conx")){
+    return WiFi.isConnected() ? FPSTR(S_y) : FPSTR(S_n);
+  }
+
+  #ifdef ESP8266
+  else if(id==F("autoconx")){
+    return WiFi.getAutoConnect() ? FPSTR(S_enable) : FPSTR(S_disable);
+  }
+  #endif
+  #if defined(ESP32) && !defined(WM_NOTEMP)
+  else if(id==F("temp")){
+    // temperature is not calibrated, varying large offsets are present, use for relative temp changes only
+    return String(temperatureRead());
+  }
+  #endif
+  else if(id==F("aboutver")){
+    return FPSTR(WM_VERSION_STR);
+  }
+  else if(id==F("aboutarduinover")){
+    #ifdef VER_ARDUINO_STR
+    return String(VER_ARDUINO_STR);
+    #endif
+  }
+  // else if(id==F("aboutidfver")){
+  //   #ifdef VER_IDF_STR
+  //   p = FPSTR(HTTP_INFO_aboutidf);
+  //   p.replace(FPSTR(T_1),String(VER_IDF_STR));
+  //   #endif
+  // }
+  else if(id==F("aboutsdkver")){
+    #ifdef ESP32
+      return String(esp_get_idf_version());
+      // p.replace(FPSTR(T_1),(String)system_get_sdk_version()); // deprecated
+    #else
+      return String(system_get_sdk_version());
+    #endif
+  }
+  else if(id==F("aboutdate")){
+    return String(__DATE__ " " __TIME__);
+  }
+  return String("");
 }
 
 String WiFiManager::getInfoData(String id){

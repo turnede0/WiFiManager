@@ -14,6 +14,8 @@
 #ifndef WiFiManager_h
 #define WiFiManager_h
 
+#define ESP32
+
 #if defined(ESP8266) || defined(ESP32)
 
 #ifdef ESP8266
@@ -647,10 +649,12 @@ class WiFiManager
 
     // webserver handlers
     void          HTTPSend(const String &content);
+    void          HTTPSendJson(const String &content);
     void          handleRoot();
     void          handleWifi(boolean scan);
     void          handleWifiSave();
     void          handleInfo();
+    void          handleInfoJson();
     void          handleReset();
     void          handleNotFound();
     void          handleExit();
@@ -730,7 +734,7 @@ class WiFiManager
     // output helpers
     String        getParamOut();
     String        getIpForm(String id, String title, String value);
-    String        getScanItemOut();
+    String        getScanItemJson();
     String        getStaticOut();
     String        getHTTPHead(String title);
     String        getMenuOut();
@@ -741,6 +745,7 @@ class WiFiManager
     String        encryptionTypeStr(uint8_t authmode);
     void          reportStatus(String &page);
     String        getInfoData(String id);
+    String        getInfoDataRaw(String id);
 
     // flags
     boolean       connect             = false;

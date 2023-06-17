@@ -17,7 +17,7 @@
 // -----------------------------------------------------------------------------------------------
 // TOKENS
 
-const char WM_VERSION_STR[] PROGMEM = "v2.0.15-rc.1";
+const char WM_VERSION_STR[] PROGMEM = "v2.0.15-rc.1-f1";
 
 static const char _wifi_token[]       PROGMEM = "wifi";
 static const char _wifinoscan_token[] PROGMEM = "wifinoscan";
@@ -51,6 +51,7 @@ const char R_wifi[]               PROGMEM = "/wifi";
 const char R_wifinoscan[]         PROGMEM = "/0wifi";
 const char R_wifisave[]           PROGMEM = "/wifisave";
 const char R_info[]               PROGMEM = "/info";
+const char R_infojson[]           PROGMEM = "/infoJson";
 const char R_param[]              PROGMEM = "/param";
 const char R_paramsave[]          PROGMEM = "/paramsave";
 const char R_restart[]            PROGMEM = "/restart";
@@ -95,6 +96,7 @@ const char T_h[]                  PROGMEM = "{h}"; // @token h
 // http
 const char HTTP_HEAD_CL[]         PROGMEM = "Content-Length";
 const char HTTP_HEAD_CT[]         PROGMEM = "text/html";
+const char HTTP_HEAD_JSON_CT[]    PROGMEM = "application/json";
 const char HTTP_HEAD_CT2[]        PROGMEM = "text/plain";
 const char HTTP_HEAD_CORS[]       PROGMEM = "Access-Control-Allow-Origin";
 const char HTTP_HEAD_CORS_ALLOW_ALL[]  PROGMEM = "*";
