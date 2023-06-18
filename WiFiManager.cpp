@@ -649,7 +649,6 @@ void WiFiManager::setupHTTPServer(){
   server->on(WM_G(R_wifinoscan), std::bind(&WiFiManager::handleWifi, this, false));
   server->on(WM_G(R_wifisave),   std::bind(&WiFiManager::handleWifiSave, this));
   server->on(WM_G(R_info),       std::bind(&WiFiManager::handleInfo, this));
-  server->on(WM_G(R_infojson),   std::bind(&WiFiManager::handleInfoJson, this));
   server->on(WM_G(R_param),      std::bind(&WiFiManager::handleParam, this));
   server->on(WM_G(R_paramsave),  std::bind(&WiFiManager::handleParamSave, this));
   server->on(WM_G(R_restart),    std::bind(&WiFiManager::handleReset, this));
@@ -1382,21 +1381,49 @@ void WiFiManager::handleParam(){
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Param"));
   #endif
   handleRequest();
-  String page = getHTTPHead(FPSTR(S_titleparam)); // @token titlewifi
 
-  String pitem = "";
+  DynamicJsonDocument jsonBuffer(1024);
 
-  pitem = FPSTR(HTTP_FORM_START);
-  pitem.replace(FPSTR(T_v), F("paramsave"));
-  page += pitem;
+  jsonBuffer["report_status"]["prev"] = getWLStatusString(_lastconxresult);
+  jsonBuffer["report_status"]["current"] = getWLStatusString(WiFi.status());
+  if (WiFi_SSID() != "") {
+    jsonBuffer["report_status"]["ssid"] = WiFi_SSID();
+    if (WiFi.status()==WL_CONNECTED){
+      jsonBuffer["report_status"]["ip"] = WiFi.localIP().toString();
+    }
+  }
 
-  page += getParamOut();
-  page += FPSTR(HTTP_FORM_END);
-  if(_showBack) page += FPSTR(HTTP_BACKBTN);
-  reportStatus(page);
-  page += FPSTR(HTTP_END);
+  // getParamOut();
+  // add the extra parameters to the form
+  int index = 0;
+  for (int i = 0; i < _paramsCount; i++) {
+    if (_params[i] == NULL || _params[i]->_length > 99999) {
+      #ifdef WM_DEBUG_LEVEL
+      DEBUG_WM(DEBUG_ERROR,F("[ERROR] WiFiManagerParameter is out of scope"));
+      #endif
+      continue;
+    }
+    // #define WFM_LABEL_BEFORE 1
+    // #define WFM_LABEL_AFTER 2
+    jsonBuffer["params"][index]["placement"] = _params[i]->getLabelPlacement();
+    jsonBuffer["params"][index]["placement"] = _params[i]->getLabelPlacement();
 
-  HTTPSend(page);
+    // Input templating
+    // "<br/><input id='{i}' name='{n}' maxlength='{l}' value='{v}' {c}>";
+    // if no ID use customhtml for item, else generate from param string
+    if (_params[index]->getID() != NULL) {
+      jsonBuffer["params"][index]["id"] = _params[i]->getID();
+      jsonBuffer["params"][index]["label"] = _params[i]->getLabel();
+      jsonBuffer["params"][index]["value_length"] = _params[i]->getValueLength();
+      jsonBuffer["params"][index]["value"] = _params[i]->getValue();
+    }
+    jsonBuffer["params"][index]["custom_html"] = _params[i]->getCustomHTML();
+    ++index;
+  }
+  String json;
+  serializeJson(jsonBuffer, json);
+  jsonBuffer.clear();
+  HTTPSendJson(json);
 
   #ifdef WM_DEBUG_LEVEL
   DEBUG_WM(DEBUG_DEV,F("Sent param page"));
@@ -1592,6 +1619,7 @@ String WiFiManager::WiFiManager::getScanItemJson(){
         delay(0);
       }
       serializeJson(jsonBuffer, json);
+      jsonBuffer.clear();
     }
     return json;
 }
@@ -1716,12 +1744,7 @@ void WiFiManager::handleWiFiStatus(){
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP WiFi status "));
   #endif
   handleRequest();
-  String page;
-  // String page = "{\"result\":true,\"count\":1}";
-  #ifdef WM_JSTEST
-    page = FPSTR(HTTP_JS);
-  #endif
-  HTTPSend(page);
+  HTTPSendJson("{}");
 }
 
 /** 
@@ -1791,23 +1814,12 @@ void WiFiManager::handleWifiSave() {
 
   if(_paramsInWifi) doParamSave();
 
-  String page;
-
   if(_ssid == ""){
-    page = getHTTPHead(FPSTR(S_titlewifisettings)); // @token titleparamsaved
-    page += FPSTR(HTTP_PARAMSAVED);
+    HTTPSendJson("{\"status\":\"settings_saved\"}");
   }
   else {
-    page = getHTTPHead(FPSTR(S_titlewifisaved)); // @token titlewifisaved
-    page += FPSTR(HTTP_SAVED);
+    HTTPSendJson("{\"status\":\"credentials_saved\"}");
   }
-
-  if(_showBack) page += FPSTR(HTTP_BACKBTN);
-  page += FPSTR(HTTP_END);
-
-  server->sendHeader(FPSTR(HTTP_HEAD_CORS), FPSTR(HTTP_HEAD_CORS_ALLOW_ALL)); // @HTTPHEAD send cors
-  HTTPSend(page);
-
   #ifdef WM_DEBUG_LEVEL
   DEBUG_WM(DEBUG_DEV,F("Sent wifi save page"));
   #endif
@@ -1827,12 +1839,7 @@ void WiFiManager::handleParamSave() {
 
   doParamSave();
 
-  String page = getHTTPHead(FPSTR(S_titleparamsaved)); // @token titleparamsaved
-  page += FPSTR(HTTP_PARAMSAVED);
-  if(_showBack) page += FPSTR(HTTP_BACKBTN); 
-  page += FPSTR(HTTP_END);
-
-  HTTPSend(page);
+  HTTPSendJson("{\"status\":\"settings_saved\"}");
 
   #ifdef WM_DEBUG_LEVEL
   DEBUG_WM(DEBUG_DEV,F("Sent param save page"));
@@ -1885,125 +1892,11 @@ void WiFiManager::doParamSave(){
    
 }
 
-/** 
- * HTTPD CALLBACK info page
- */
 void WiFiManager::handleInfo() {
   #ifdef WM_DEBUG_LEVEL
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Info"));
   #endif
   handleRequest();
-  String page = getHTTPHead(FPSTR(S_titleinfo)); // @token titleinfo
-  reportStatus(page);
-
-  uint16_t infos = 0;
-
-  //@todo convert to enum or refactor to strings
-  //@todo wrap in build flag to remove all info code for memory saving
-  #ifdef ESP8266
-    infos = 28;
-    String infoids[] = {
-      F("esphead"),
-      F("uptime"),
-      F("chipid"),
-      F("fchipid"),
-      F("idesize"),
-      F("flashsize"),
-      F("corever"),
-      F("bootver"),
-      F("cpufreq"),
-      F("freeheap"),
-      F("memsketch"),
-      F("memsmeter"),
-      F("lastreset"),
-      F("wifihead"),
-      F("conx"),
-      F("stassid"),
-      F("staip"),
-      F("stagw"),
-      F("stasub"),
-      F("dnss"),
-      F("host"),
-      F("stamac"),
-      F("autoconx"),
-      F("wifiaphead"),
-      F("apssid"),
-      F("apip"),
-      F("apbssid"),
-      F("apmac")
-    };
-
-  #elif defined(ESP32)
-    // add esp_chip_info ?
-    infos = 27;
-    String infoids[] = {
-      F("esphead"),
-      F("uptime"),
-      F("chipid"),
-      F("chiprev"),
-      F("idesize"),
-      F("flashsize"),      
-      F("cpufreq"),
-      F("freeheap"),
-      F("memsketch"),
-      F("memsmeter"),      
-      F("lastreset"),
-      F("temp"),
-      // F("hall"),
-      F("wifihead"),
-      F("conx"),
-      F("stassid"),
-      F("staip"),
-      F("stagw"),
-      F("stasub"),
-      F("dnss"),
-      F("host"),
-      F("stamac"),
-      F("apssid"),
-      F("wifiaphead"),
-      F("apip"),
-      F("apmac"),
-      F("aphost"),
-      F("apbssid")
-    };
-  #endif
-
-  for(size_t i=0; i<infos;i++){
-    if(infoids[i] != NULL) page += getInfoData(infoids[i]);
-  }
-  page += F("</dl>");
-
-  page += F("<h3>About</h3><hr><dl>");
-  page += getInfoData("aboutver");
-  page += getInfoData("aboutarduinover");
-  page += getInfoData("aboutidfver");
-  page += getInfoData("aboutdate");
-  page += F("</dl>");
-
-  if(_showInfoUpdate){
-    page += HTTP_PORTAL_MENU[8];
-    page += HTTP_PORTAL_MENU[9];
-  }
-  if(_showInfoErase) page += FPSTR(HTTP_ERASEBTN);
-  if(_showBack) page += FPSTR(HTTP_BACKBTN);
-  page += FPSTR(HTTP_HELP);
-  page += FPSTR(HTTP_END);
-
-  HTTPSend(page);
-
-  #ifdef WM_DEBUG_LEVEL
-  DEBUG_WM(DEBUG_DEV,F("Sent info page"));
-  #endif
-}
-
-void WiFiManager::handleInfoJson() {
-  #ifdef WM_DEBUG_LEVEL
-  DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Info"));
-  #endif
-  handleRequest();
-
-  // todo
-  // reportStatus(page);
 
   uint16_t infos = 0;
 
@@ -2086,6 +1979,16 @@ void WiFiManager::handleInfoJson() {
   #endif
 
   DynamicJsonDocument jsonBuffer(1024);
+
+  jsonBuffer["report_status"]["prev"] = getWLStatusString(_lastconxresult);
+  jsonBuffer["report_status"]["current"] = getWLStatusString(WiFi.status());
+  if (WiFi_SSID() != "") {
+    jsonBuffer["report_status"]["ssid"] = WiFi_SSID();
+    if (WiFi.status()==WL_CONNECTED){
+      jsonBuffer["report_status"]["ip"] = WiFi.localIP().toString();
+    }
+  }
+
   for(size_t i=0; i<infos;i++){
     if(infoids[i] != NULL) {
       jsonBuffer[infoids[i]] = getInfoDataRaw(infoids[i]);
@@ -2094,6 +1997,7 @@ void WiFiManager::handleInfoJson() {
 
   String json;
   serializeJson(jsonBuffer, json);
+  jsonBuffer.clear();
   HTTPSendJson(json);
 
   #ifdef WM_DEBUG_LEVEL
@@ -2525,11 +2429,9 @@ void WiFiManager::handleExit() {
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Exit"));
   #endif
   handleRequest();
-  String page = getHTTPHead(FPSTR(S_titleexit)); // @token titleexit
-  page += FPSTR(S_exiting); // @token exiting
   // ('Logout', 401, {'WWW-Authenticate': 'Basic realm="Login required"'})
   server->sendHeader(F("Cache-Control"), F("no-cache, no-store, must-revalidate")); // @HTTPHEAD send cache
-  HTTPSend(page);
+  HTTPSendJson("{\"status\":\"exiting\"}");
   delay(2000);
   abort = true;
 }
@@ -2542,11 +2444,8 @@ void WiFiManager::handleReset() {
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Reset"));
   #endif
   handleRequest();
-  String page = getHTTPHead(FPSTR(S_titlereset)); //@token titlereset
-  page += FPSTR(S_resetting); //@token resetting
-  page += FPSTR(HTTP_END);
-
-  HTTPSend(page);
+  
+  HTTPSendJson("{\"status\":\"rebooting\"}");
 
   #ifdef WM_DEBUG_LEVEL
   DEBUG_WM(F("RESETTING ESP"));
@@ -2571,24 +2470,20 @@ void WiFiManager::handleErase(boolean opt) {
 
   bool ret = erase(opt);
 
-  if(ret) page += FPSTR(S_resetting); // @token resetting
-  else {
-    page += FPSTR(S_error); // @token erroroccur
-    #ifdef WM_DEBUG_LEVEL
-    DEBUG_WM(DEBUG_ERROR,F("[ERROR] WiFi EraseConfig failed"));
-    #endif
-  }
+  if (ret) {
+    HTTPSendJson("{\"status\":\"resetting\"}");
 
-  page += FPSTR(HTTP_END);
-  HTTPSend(page);
-
-  if(ret){
     delay(2000);
     #ifdef WM_DEBUG_LEVEL
   	DEBUG_WM(F("RESETTING ESP"));
     #endif
   	reboot();
-  }	
+  } else {
+    HTTPSendJson("{\"status\":\"error\"}");
+    #ifdef WM_DEBUG_LEVEL
+    DEBUG_WM(DEBUG_ERROR,F("[ERROR] WiFi EraseConfig failed"));
+    #endif
+  }
 }
 
 /** 
@@ -2657,50 +2552,7 @@ void WiFiManager::handleClose(){
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP close"));
   #endif
   handleRequest();
-  String page = getHTTPHead(FPSTR(S_titleclose)); // @token titleclose
-  page += FPSTR(S_closing); // @token closing
-  HTTPSend(page);
-}
-
-void WiFiManager::reportStatus(String &page){
-  // updateConxResult(WiFi.status()); // @todo: this defeats the purpose of last result, update elsewhere or add logic here
-  DEBUG_WM(DEBUG_DEV,F("[WIFI] reportStatus prev:"),getWLStatusString(_lastconxresult));
-  DEBUG_WM(DEBUG_DEV,F("[WIFI] reportStatus current:"),getWLStatusString(WiFi.status()));
-  String str;
-  if (WiFi_SSID() != ""){
-    if (WiFi.status()==WL_CONNECTED){
-      str = FPSTR(HTTP_STATUS_ON);
-      str.replace(FPSTR(T_i),WiFi.localIP().toString());
-      str.replace(FPSTR(T_v),htmlEntities(WiFi_SSID()));
-    }
-    else {
-      str = FPSTR(HTTP_STATUS_OFF);
-      str.replace(FPSTR(T_v),htmlEntities(WiFi_SSID()));
-      if(_lastconxresult == WL_STATION_WRONG_PASSWORD){
-        // wrong password
-        str.replace(FPSTR(T_c),"D"); // class
-        str.replace(FPSTR(T_r),FPSTR(HTTP_STATUS_OFFPW));
-      }
-      else if(_lastconxresult == WL_NO_SSID_AVAIL){
-        // connect failed, or ap not found
-        str.replace(FPSTR(T_c),"D");
-        str.replace(FPSTR(T_r),FPSTR(HTTP_STATUS_OFFNOAP));
-      }
-      else if(_lastconxresult == WL_CONNECT_FAILED){
-        // connect failed
-        str.replace(FPSTR(T_c),"D");
-        str.replace(FPSTR(T_r),FPSTR(HTTP_STATUS_OFFFAIL));
-      }
-      else{
-        str.replace(FPSTR(T_c),"");
-        str.replace(FPSTR(T_r),"");
-      } 
-    }
-  }
-  else {
-    str = FPSTR(HTTP_STATUS_NONE);
-  }
-  page += str;
+  HTTPSendJson("{\"status\":\"closing\"}");
 }
 
 // PUBLIC
@@ -4045,17 +3897,15 @@ void WiFiManager::handleUpdate() {
 	DEBUG_WM(DEBUG_VERBOSE,F("<- Handle update"));
   #endif
 	if (captivePortal()) return; // If captive portal redirect instead of displaying the page
-	String page = getHTTPHead(_title); // @token options
-	String str = FPSTR(HTTP_ROOT_MAIN);
-  str.replace(FPSTR(T_t), _title);
-	str.replace(FPSTR(T_v), configPortalActive ? _apName : (getWiFiHostname() + " - " + WiFi.localIP().toString())); // use ip if ap is not active for heading
-	page += str;
-
-	page += FPSTR(HTTP_UPDATE);
-	page += FPSTR(HTTP_END);
-
-	HTTPSend(page);
-
+	
+  DynamicJsonDocument jsonBuffer(1024);
+  jsonBuffer["status"] = "done";
+  jsonBuffer["ap_name"] = configPortalActive ? _apName :
+    (getWiFiHostname() + " - " + WiFi.localIP().toString());
+  String json;
+  serializeJson(jsonBuffer, json);
+  jsonBuffer.clear();
+  HTTPSendJson(json);
 }
 
 // upload via /u POST
@@ -4155,28 +4005,28 @@ void WiFiManager::handleUpdateDone() {
 	DEBUG_WM(DEBUG_VERBOSE, F("<- Handle update done"));
 	// if (captivePortal()) return; // If captive portal redirect instead of displaying the page
 
-	String page = getHTTPHead(FPSTR(S_options)); // @token options
-	String str  = FPSTR(HTTP_ROOT_MAIN);
-  str.replace(FPSTR(T_t),_title);
-	str.replace(FPSTR(T_v), configPortalActive ? _apName : WiFi.localIP().toString()); // use ip if ap is not active for heading
-	page += str;
-
+  DynamicJsonDocument jsonBuffer(1024);
+  jsonBuffer["status"] = "done";
+  jsonBuffer["ap_name"] = configPortalActive ? _apName :
+    (getWiFiHostname() + " - " + WiFi.localIP().toString());
 	if (Update.hasError()) {
-		page += FPSTR(HTTP_UPDATE_FAIL);
+    jsonBuffer["status"] = "error";
     #ifdef ESP32
-    page += "OTA Error: " + (String)Update.errorString();
+    jsonBuffer["reason"] = (String)Update.errorString();
     #else
-    page += "OTA Error: " + (String)Update.getError();
+    jsonBuffer["reason"] = (String)Update.getError();
     #endif
 		DEBUG_WM(F("[OTA] update failed"));
 	}
 	else {
-		page += FPSTR(HTTP_UPDATE_SUCCESS);
+    jsonBuffer["status"] = "done";
 		DEBUG_WM(F("[OTA] update ok"));
 	}
-	page += FPSTR(HTTP_END);
 
-	HTTPSend(page);
+  String json;
+  serializeJson(jsonBuffer, json);
+  jsonBuffer.clear();
+  HTTPSendJson(json);
 
 	delay(1000); // send page
 	if (!Update.hasError()) {
