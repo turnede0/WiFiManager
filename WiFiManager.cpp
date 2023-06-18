@@ -13,6 +13,9 @@
 #include "ArduinoJson.h"
 #include "WiFiManager.h"
 
+extern const uint8_t html_gz_start[] asm("_binary_frontend_index_html_gz_start");
+extern const uint8_t html_gz_end[] asm("_binary_frontend_index_html_gz_end");
+
 #if defined(ESP8266) || defined(ESP32)
 
 #ifdef ESP32
@@ -1332,23 +1335,21 @@ void WiFiManager::handleRequest() {
  * HTTPD CALLBACK root or redirect to captive portal
  */
 void WiFiManager::handleRoot() {
-  // TODO: change this to compressed static react app
   #ifdef WM_DEBUG_LEVEL
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Root"));
   #endif
   if (captivePortal()) return; // If captive portal redirect instead of displaying the page
   handleRequest();
-  String page = getHTTPHead(_title); // @token options @todo replace options with title
-  String str  = FPSTR(HTTP_ROOT_MAIN); // @todo custom title
-  str.replace(FPSTR(T_t),_title);
-  str.replace(FPSTR(T_v),configPortalActive ? _apName : (getWiFiHostname() + " - " + WiFi.localIP().toString())); // use ip if ap is not active for heading @todo use hostname?
-  page += str;
-  page += FPSTR(HTTP_PORTAL_OPTIONS);
-  page += getMenuOut();
-  reportStatus(page);
-  page += FPSTR(HTTP_END);
 
-  HTTPSend(page); // root
+  // return static react app in a single compressed file
+  server->sendHeader(F("Content-Encoding"), F("gzip"));
+  server->send_P(
+    200,
+    HTTP_HEAD_CT,
+    reinterpret_cast<const char *>(html_gz_start),
+    html_gz_end - html_gz_start
+  );
+
   if(_preloadwifiscan) WiFi_scanNetworks(_scancachetime,true); // preload wifiscan throttled, async
   // @todo buggy, captive portals make a query on every page load, causing this to run every time in addition to the real page load
   // I dont understand why, when you are already in the captive portal, I guess they want to know that its still up and not done or gone
