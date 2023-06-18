@@ -1277,29 +1277,29 @@ void WiFiManager::startWPS() {
 
 String WiFiManager::getHTTPHead(String title){
   String page;
-  page += FPSTR(HTTP_HEAD_START);
-  page.replace(FPSTR(T_v), title);
-  page += FPSTR(HTTP_SCRIPT);
-  page += FPSTR(HTTP_STYLE);
-  page += _customHeadElement;
+  // page += FPSTR(HTTP_HEAD_START);
+  // page.replace(FPSTR(T_v), title);
+  // page += FPSTR(HTTP_SCRIPT);
+  // page += FPSTR(HTTP_STYLE);
+  // page += _customHeadElement;
 
-  if(_bodyClass != ""){
-    String p = FPSTR(HTTP_HEAD_END);
-    p.replace(FPSTR(T_c), _bodyClass); // add class str
-    page += p;
-  }
-  else {
-    page += FPSTR(HTTP_HEAD_END);
-  } 
+  // if(_bodyClass != ""){
+  //   String p = FPSTR(HTTP_HEAD_END);
+  //   p.replace(FPSTR(T_c), _bodyClass); // add class str
+  //   page += p;
+  // }
+  // else {
+  //   page += FPSTR(HTTP_HEAD_END);
+  // }
 
   return page;
 }
 
-void WiFiManager::HTTPSend(const String &content){
+void WiFiManager::HTTPSend(const String &content) {
   server->send(200, FPSTR(HTTP_HEAD_CT), content);
 }
 
-void WiFiManager::HTTPSendJson(const String &content){
+void WiFiManager::HTTPSendJson(const String &content) {
   server->send(200, FPSTR(HTTP_HEAD_JSON_CT), content);
 }
 
@@ -1363,7 +1363,6 @@ void WiFiManager::handleWifi(boolean scan) {
   DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Wifi"));
   #endif
   handleRequest();
-  String page = getHTTPHead(FPSTR(S_titlewifi)); // @token titlewifi
   if (scan) {
     #ifdef WM_DEBUG_LEVEL
     // DEBUG_WM(DEBUG_DEV,"refresh flag:",server->hasArg(F("refresh")));
@@ -1433,16 +1432,14 @@ void WiFiManager::handleParam(){
 
 String WiFiManager::getMenuOut(){
   String page;  
-
-  for(auto menuId :_menuIds ){
-    if((String)_menutokens[menuId] == "param" && _paramsCount == 0) continue; // no params set, omit params from menu, @todo this may be undesired by someone, use only menu to force?
-    if((String)_menutokens[menuId] == "custom" && _customMenuHTML!=NULL){
-      page += _customMenuHTML;
-      continue;
-    }
-    page += HTTP_PORTAL_MENU[menuId];
-  }
-
+  // for(auto menuId :_menuIds ){
+  //   if((String)_menutokens[menuId] == "param" && _paramsCount == 0) continue; // no params set, omit params from menu, @todo this may be undesired by someone, use only menu to force?
+  //   if((String)_menutokens[menuId] == "custom" && _customMenuHTML!=NULL){
+  //     page += _customMenuHTML;
+  //     continue;
+  //   }
+  //   page += HTTP_PORTAL_MENU[menuId];
+  // }
   return page;
 }
 
@@ -1625,40 +1622,41 @@ String WiFiManager::WiFiManager::getScanItemJson(){
 }
 
 String WiFiManager::getIpForm(String id, String title, String value){
-    String item = FPSTR(HTTP_FORM_LABEL);
-    item += FPSTR(HTTP_FORM_PARAM);
-    item.replace(FPSTR(T_i), id);
-    item.replace(FPSTR(T_n), id);
-    item.replace(FPSTR(T_p), FPSTR(T_t));
-    // item.replace(FPSTR(T_p), default);
-    item.replace(FPSTR(T_t), title);
-    item.replace(FPSTR(T_l), F("15"));
-    item.replace(FPSTR(T_v), value);
-    item.replace(FPSTR(T_c), "");
-    return item;  
+    // String item = FPSTR(HTTP_FORM_LABEL);
+    // item += FPSTR(HTTP_FORM_PARAM);
+    // item.replace(FPSTR(T_i), id);
+    // item.replace(FPSTR(T_n), id);
+    // item.replace(FPSTR(T_p), FPSTR(T_t));
+    // // item.replace(FPSTR(T_p), default);
+    // item.replace(FPSTR(T_t), title);
+    // item.replace(FPSTR(T_l), F("15"));
+    // item.replace(FPSTR(T_v), value);
+    // item.replace(FPSTR(T_c), "");
+    // return item;
+    return "";
 }
 
 String WiFiManager::getStaticOut(){
   String page;
-  if ((_staShowStaticFields || _sta_static_ip) && _staShowStaticFields>=0) {
-    #ifdef WM_DEBUG_LEVEL
-    DEBUG_WM(DEBUG_DEV,F("_staShowStaticFields"));
-    #endif
-    page += FPSTR(HTTP_FORM_STATIC_HEAD);
-    // @todo how can we get these accurate settings from memory , wifi_get_ip_info does not seem to reveal if struct ip_info is static or not
-    page += getIpForm(FPSTR(S_ip),FPSTR(S_staticip),(_sta_static_ip ? _sta_static_ip.toString() : "")); // @token staticip
-    // WiFi.localIP().toString();
-    page += getIpForm(FPSTR(S_gw),FPSTR(S_staticgw),(_sta_static_gw ? _sta_static_gw.toString() : "")); // @token staticgw
-    // WiFi.gatewayIP().toString();
-    page += getIpForm(FPSTR(S_sn),FPSTR(S_subnet),(_sta_static_sn ? _sta_static_sn.toString() : "")); // @token subnet
-    // WiFi.subnetMask().toString();
-  }
+  // if ((_staShowStaticFields || _sta_static_ip) && _staShowStaticFields>=0) {
+  //   #ifdef WM_DEBUG_LEVEL
+  //   DEBUG_WM(DEBUG_DEV,F("_staShowStaticFields"));
+  //   #endif
+  //   page += FPSTR(HTTP_FORM_STATIC_HEAD);
+  //   // @todo how can we get these accurate settings from memory , wifi_get_ip_info does not seem to reveal if struct ip_info is static or not
+  //   page += getIpForm(FPSTR(S_ip),FPSTR(S_staticip),(_sta_static_ip ? _sta_static_ip.toString() : "")); // @token staticip
+  //   // WiFi.localIP().toString();
+  //   page += getIpForm(FPSTR(S_gw),FPSTR(S_staticgw),(_sta_static_gw ? _sta_static_gw.toString() : "")); // @token staticgw
+  //   // WiFi.gatewayIP().toString();
+  //   page += getIpForm(FPSTR(S_sn),FPSTR(S_subnet),(_sta_static_sn ? _sta_static_sn.toString() : "")); // @token subnet
+  //   // WiFi.subnetMask().toString();
+  // }
 
-  if((_staShowDns || _sta_static_dns) && _staShowDns>=0){
-    page += getIpForm(FPSTR(S_dns),FPSTR(S_staticdns),(_sta_static_dns ? _sta_static_dns.toString() : "")); // @token dns
-  }
+  // if((_staShowDns || _sta_static_dns) && _staShowDns>=0){
+  //   page += getIpForm(FPSTR(S_dns),FPSTR(S_staticdns),(_sta_static_dns ? _sta_static_dns.toString() : "")); // @token dns
+  // }
 
-  if(page!="") page += FPSTR(HTTP_BR); // @todo remove these, use css
+  // if(page!="") page += FPSTR(HTTP_BR); // @todo remove these, use css
 
   return page;
 }
@@ -1670,6 +1668,7 @@ String WiFiManager::getParamOut(){
   DEBUG_WM(DEBUG_DEV,F("getParamOut"),_paramsCount);
   #endif
 
+  #ifdef LEGACY
   if(_paramsCount > 0){
 
     String HTTP_PARAM_temp = FPSTR(HTTP_FORM_LABEL);
@@ -1735,7 +1734,7 @@ String WiFiManager::getParamOut(){
       page += pitem;
     }
   }
-
+  #endif
   return page;
 }
 
@@ -2190,234 +2189,234 @@ String WiFiManager::getInfoDataRaw(String id){
 String WiFiManager::getInfoData(String id){
 
   String p;
-  if(id==F("esphead")){
-    p = FPSTR(HTTP_INFO_esphead);
-    #ifdef ESP32
-      p.replace(FPSTR(T_1), (String)ESP.getChipModel());
-    #endif
-  }
-  else if(id==F("wifihead")){
-    p = FPSTR(HTTP_INFO_wifihead);
-    p.replace(FPSTR(T_1),getModeString(WiFi.getMode()));
-  }
-  else if(id==F("uptime")){
-    // subject to rollover!
-    p = FPSTR(HTTP_INFO_uptime);
-    p.replace(FPSTR(T_1),(String)(millis() / 1000 / 60));
-    p.replace(FPSTR(T_2),(String)((millis() / 1000) % 60));
-  }
-  else if(id==F("chipid")){
-    p = FPSTR(HTTP_INFO_chipid);
-    p.replace(FPSTR(T_1),String(WIFI_getChipId(),HEX));
-  }
-  #ifdef ESP32
-  else if(id==F("chiprev")){
-      p = FPSTR(HTTP_INFO_chiprev);
-      String rev = (String)ESP.getChipRevision();
-      #ifdef _SOC_EFUSE_REG_H_
-        String revb = (String)(REG_READ(EFUSE_BLK0_RDATA3_REG) >> (EFUSE_RD_CHIP_VER_RESERVE_S)&&EFUSE_RD_CHIP_VER_RESERVE_V);
-        p.replace(FPSTR(T_1),rev+"<br/>"+revb);
-      #else
-        p.replace(FPSTR(T_1),rev);
-      #endif
-  }
-  #endif
-  #ifdef ESP8266
-  else if(id==F("fchipid")){
-      p = FPSTR(HTTP_INFO_fchipid);
-      p.replace(FPSTR(T_1),(String)ESP.getFlashChipId());
-  }
-  #endif
-  else if(id==F("idesize")){
-    p = FPSTR(HTTP_INFO_idesize);
-    p.replace(FPSTR(T_1),(String)ESP.getFlashChipSize());
-  }
-  else if(id==F("flashsize")){
-    #ifdef ESP8266
-      p = FPSTR(HTTP_INFO_flashsize);
-      p.replace(FPSTR(T_1),(String)ESP.getFlashChipRealSize());
-    #elif defined ESP32
-      p = FPSTR(HTTP_INFO_psrsize);
-      p.replace(FPSTR(T_1),(String)ESP.getPsramSize());      
-    #endif
-  }
-  else if(id==F("corever")){
-    #ifdef ESP8266
-      p = FPSTR(HTTP_INFO_corever);
-      p.replace(FPSTR(T_1),(String)ESP.getCoreVersion());
-    #endif      
-  }
-  #ifdef ESP8266
-  else if(id==F("bootver")){
-      p = FPSTR(HTTP_INFO_bootver);
-      p.replace(FPSTR(T_1),(String)system_get_boot_version());
-  }
-  #endif
-  else if(id==F("cpufreq")){
-    p = FPSTR(HTTP_INFO_cpufreq);
-    p.replace(FPSTR(T_1),(String)ESP.getCpuFreqMHz());
-  }
-  else if(id==F("freeheap")){
-    p = FPSTR(HTTP_INFO_freeheap);
-    p.replace(FPSTR(T_1),(String)ESP.getFreeHeap());
-  }
-  else if(id==F("memsketch")){
-    p = FPSTR(HTTP_INFO_memsketch);
-    p.replace(FPSTR(T_1),(String)(ESP.getSketchSize()));
-    p.replace(FPSTR(T_2),(String)(ESP.getSketchSize()+ESP.getFreeSketchSpace()));
-  }
-  else if(id==F("memsmeter")){
-    p = FPSTR(HTTP_INFO_memsmeter);
-    p.replace(FPSTR(T_1),(String)(ESP.getSketchSize()));
-    p.replace(FPSTR(T_2),(String)(ESP.getSketchSize()+ESP.getFreeSketchSpace()));
-  }
-  else if(id==F("lastreset")){
-    #ifdef ESP8266
-      p = FPSTR(HTTP_INFO_lastreset);
-      p.replace(FPSTR(T_1),(String)ESP.getResetReason());
-    #elif defined(ESP32) && defined(_ROM_RTC_H_)
-      // requires #include <rom/rtc.h>
-      p = FPSTR(HTTP_INFO_lastreset);
-      for(int i=0;i<2;i++){
-        int reason = rtc_get_reset_reason(i);
-        String tok = (String)T_ss+(String)(i+1)+(String)T_es;
-        switch (reason)
-        {
-          //@todo move to array
-          case 1  : p.replace(tok,F("Vbat power on reset"));break;
-          case 3  : p.replace(tok,F("Software reset digital core"));break;
-          case 4  : p.replace(tok,F("Legacy watch dog reset digital core"));break;
-          case 5  : p.replace(tok,F("Deep Sleep reset digital core"));break;
-          case 6  : p.replace(tok,F("Reset by SLC module, reset digital core"));break;
-          case 7  : p.replace(tok,F("Timer Group0 Watch dog reset digital core"));break;
-          case 8  : p.replace(tok,F("Timer Group1 Watch dog reset digital core"));break;
-          case 9  : p.replace(tok,F("RTC Watch dog Reset digital core"));break;
-          case 10 : p.replace(tok,F("Instrusion tested to reset CPU"));break;
-          case 11 : p.replace(tok,F("Time Group reset CPU"));break;
-          case 12 : p.replace(tok,F("Software reset CPU"));break;
-          case 13 : p.replace(tok,F("RTC Watch dog Reset CPU"));break;
-          case 14 : p.replace(tok,F("for APP CPU, reseted by PRO CPU"));break;
-          case 15 : p.replace(tok,F("Reset when the vdd voltage is not stable"));break;
-          case 16 : p.replace(tok,F("RTC Watch dog reset digital core and rtc module"));break;
-          default : p.replace(tok,F("NO_MEAN"));
-        }
-      }
-    #endif
-  }
-  else if(id==F("apip")){
-    p = FPSTR(HTTP_INFO_apip);
-    p.replace(FPSTR(T_1),WiFi.softAPIP().toString());
-  }
-  else if(id==F("apmac")){
-    p = FPSTR(HTTP_INFO_apmac);
-    p.replace(FPSTR(T_1),(String)WiFi.softAPmacAddress());
-  }
-  #ifdef ESP32
-  else if(id==F("aphost")){
-      p = FPSTR(HTTP_INFO_aphost);
-      p.replace(FPSTR(T_1),WiFi.softAPgetHostname());
-  }
-  #endif
-  #ifndef WM_NOSOFTAPSSID
-  #ifdef ESP8266
-  else if(id==F("apssid")){
-    p = FPSTR(HTTP_INFO_apssid);
-    p.replace(FPSTR(T_1),htmlEntities(WiFi.softAPSSID()));
-  }
-  #endif
-  #endif
-  else if(id==F("apbssid")){
-    p = FPSTR(HTTP_INFO_apbssid);
-    p.replace(FPSTR(T_1),(String)WiFi.BSSIDstr());
-  }
-  // softAPgetHostname // esp32
-  // softAPSubnetCIDR
-  // softAPNetworkID
-  // softAPBroadcastIP
-
-  else if(id==F("stassid")){
-    p = FPSTR(HTTP_INFO_stassid);
-    p.replace(FPSTR(T_1),htmlEntities((String)WiFi_SSID()));
-  }
-  else if(id==F("staip")){
-    p = FPSTR(HTTP_INFO_staip);
-    p.replace(FPSTR(T_1),WiFi.localIP().toString());
-  }
-  else if(id==F("stagw")){
-    p = FPSTR(HTTP_INFO_stagw);
-    p.replace(FPSTR(T_1),WiFi.gatewayIP().toString());
-  }
-  else if(id==F("stasub")){
-    p = FPSTR(HTTP_INFO_stasub);
-    p.replace(FPSTR(T_1),WiFi.subnetMask().toString());
-  }
-  else if(id==F("dnss")){
-    p = FPSTR(HTTP_INFO_dnss);
-    p.replace(FPSTR(T_1),WiFi.dnsIP().toString());
-  }
-  else if(id==F("host")){
-    p = FPSTR(HTTP_INFO_host);
-    #ifdef ESP32
-      p.replace(FPSTR(T_1),WiFi.getHostname());
-    #else
-    p.replace(FPSTR(T_1),WiFi.hostname());
-    #endif
-  }
-  else if(id==F("stamac")){
-    p = FPSTR(HTTP_INFO_stamac);
-    p.replace(FPSTR(T_1),WiFi.macAddress());
-  }
-  else if(id==F("conx")){
-    p = FPSTR(HTTP_INFO_conx);
-    p.replace(FPSTR(T_1),WiFi.isConnected() ? FPSTR(S_y) : FPSTR(S_n));
-  }
-  #ifdef ESP8266
-  else if(id==F("autoconx")){
-    p = FPSTR(HTTP_INFO_autoconx);
-    p.replace(FPSTR(T_1),WiFi.getAutoConnect() ? FPSTR(S_enable) : FPSTR(S_disable));
-  }
-  #endif
-  #if defined(ESP32) && !defined(WM_NOTEMP)
-  else if(id==F("temp")){
-    // temperature is not calibrated, varying large offsets are present, use for relative temp changes only
-    p = FPSTR(HTTP_INFO_temp);
-    p.replace(FPSTR(T_1),(String)temperatureRead());
-    p.replace(FPSTR(T_2),(String)((temperatureRead()+32)*1.8f));
-  }
-  // else if(id==F("hall")){ 
-  //   p = FPSTR(HTTP_INFO_hall);
-  //   p.replace(FPSTR(T_1),(String)hallRead()); // hall sensor reads can cause issues with adcs
-  // }
-  #endif
-  else if(id==F("aboutver")){
-    p = FPSTR(HTTP_INFO_aboutver);
-    p.replace(FPSTR(T_1),FPSTR(WM_VERSION_STR));
-  }
-  else if(id==F("aboutarduinover")){
-    #ifdef VER_ARDUINO_STR
-    p = FPSTR(HTTP_INFO_aboutarduino);
-    p.replace(FPSTR(T_1),String(VER_ARDUINO_STR));
-    #endif
-  }
-  // else if(id==F("aboutidfver")){
-  //   #ifdef VER_IDF_STR
-  //   p = FPSTR(HTTP_INFO_aboutidf);
-  //   p.replace(FPSTR(T_1),String(VER_IDF_STR));
+  // if(id==F("esphead")){
+  //   p = FPSTR(HTTP_INFO_esphead);
+  //   #ifdef ESP32
+  //     p.replace(FPSTR(T_1), (String)ESP.getChipModel());
   //   #endif
   // }
-  else if(id==F("aboutsdkver")){
-    p = FPSTR(HTTP_INFO_sdkver);
-    #ifdef ESP32
-      p.replace(FPSTR(T_1),(String)esp_get_idf_version());
-      // p.replace(FPSTR(T_1),(String)system_get_sdk_version()); // deprecated
-    #else
-    p.replace(FPSTR(T_1),(String)system_get_sdk_version());
-    #endif
-  }
-  else if(id==F("aboutdate")){
-    p = FPSTR(HTTP_INFO_aboutdate);
-    p.replace(FPSTR(T_1),String(__DATE__ " " __TIME__));
-  }
+  // else if(id==F("wifihead")){
+  //   p = FPSTR(HTTP_INFO_wifihead);
+  //   p.replace(FPSTR(T_1),getModeString(WiFi.getMode()));
+  // }
+  // else if(id==F("uptime")){
+  //   // subject to rollover!
+  //   p = FPSTR(HTTP_INFO_uptime);
+  //   p.replace(FPSTR(T_1),(String)(millis() / 1000 / 60));
+  //   p.replace(FPSTR(T_2),(String)((millis() / 1000) % 60));
+  // }
+  // else if(id==F("chipid")){
+  //   p = FPSTR(HTTP_INFO_chipid);
+  //   p.replace(FPSTR(T_1),String(WIFI_getChipId(),HEX));
+  // }
+  // #ifdef ESP32
+  // else if(id==F("chiprev")){
+  //     p = FPSTR(HTTP_INFO_chiprev);
+  //     String rev = (String)ESP.getChipRevision();
+  //     #ifdef _SOC_EFUSE_REG_H_
+  //       String revb = (String)(REG_READ(EFUSE_BLK0_RDATA3_REG) >> (EFUSE_RD_CHIP_VER_RESERVE_S)&&EFUSE_RD_CHIP_VER_RESERVE_V);
+  //       p.replace(FPSTR(T_1),rev+"<br/>"+revb);
+  //     #else
+  //       p.replace(FPSTR(T_1),rev);
+  //     #endif
+  // }
+  // #endif
+  // #ifdef ESP8266
+  // else if(id==F("fchipid")){
+  //     p = FPSTR(HTTP_INFO_fchipid);
+  //     p.replace(FPSTR(T_1),(String)ESP.getFlashChipId());
+  // }
+  // #endif
+  // else if(id==F("idesize")){
+  //   p = FPSTR(HTTP_INFO_idesize);
+  //   p.replace(FPSTR(T_1),(String)ESP.getFlashChipSize());
+  // }
+  // else if(id==F("flashsize")){
+  //   #ifdef ESP8266
+  //     p = FPSTR(HTTP_INFO_flashsize);
+  //     p.replace(FPSTR(T_1),(String)ESP.getFlashChipRealSize());
+  //   #elif defined ESP32
+  //     p = FPSTR(HTTP_INFO_psrsize);
+  //     p.replace(FPSTR(T_1),(String)ESP.getPsramSize());      
+  //   #endif
+  // }
+  // else if(id==F("corever")){
+  //   #ifdef ESP8266
+  //     p = FPSTR(HTTP_INFO_corever);
+  //     p.replace(FPSTR(T_1),(String)ESP.getCoreVersion());
+  //   #endif      
+  // }
+  // #ifdef ESP8266
+  // else if(id==F("bootver")){
+  //     p = FPSTR(HTTP_INFO_bootver);
+  //     p.replace(FPSTR(T_1),(String)system_get_boot_version());
+  // }
+  // #endif
+  // else if(id==F("cpufreq")){
+  //   p = FPSTR(HTTP_INFO_cpufreq);
+  //   p.replace(FPSTR(T_1),(String)ESP.getCpuFreqMHz());
+  // }
+  // else if(id==F("freeheap")){
+  //   p = FPSTR(HTTP_INFO_freeheap);
+  //   p.replace(FPSTR(T_1),(String)ESP.getFreeHeap());
+  // }
+  // else if(id==F("memsketch")){
+  //   p = FPSTR(HTTP_INFO_memsketch);
+  //   p.replace(FPSTR(T_1),(String)(ESP.getSketchSize()));
+  //   p.replace(FPSTR(T_2),(String)(ESP.getSketchSize()+ESP.getFreeSketchSpace()));
+  // }
+  // else if(id==F("memsmeter")){
+  //   p = FPSTR(HTTP_INFO_memsmeter);
+  //   p.replace(FPSTR(T_1),(String)(ESP.getSketchSize()));
+  //   p.replace(FPSTR(T_2),(String)(ESP.getSketchSize()+ESP.getFreeSketchSpace()));
+  // }
+  // else if(id==F("lastreset")){
+  //   #ifdef ESP8266
+  //     p = FPSTR(HTTP_INFO_lastreset);
+  //     p.replace(FPSTR(T_1),(String)ESP.getResetReason());
+  //   #elif defined(ESP32) && defined(_ROM_RTC_H_)
+  //     // requires #include <rom/rtc.h>
+  //     p = FPSTR(HTTP_INFO_lastreset);
+  //     for(int i=0;i<2;i++){
+  //       int reason = rtc_get_reset_reason(i);
+  //       String tok = (String)T_ss+(String)(i+1)+(String)T_es;
+  //       switch (reason)
+  //       {
+  //         //@todo move to array
+  //         case 1  : p.replace(tok,F("Vbat power on reset"));break;
+  //         case 3  : p.replace(tok,F("Software reset digital core"));break;
+  //         case 4  : p.replace(tok,F("Legacy watch dog reset digital core"));break;
+  //         case 5  : p.replace(tok,F("Deep Sleep reset digital core"));break;
+  //         case 6  : p.replace(tok,F("Reset by SLC module, reset digital core"));break;
+  //         case 7  : p.replace(tok,F("Timer Group0 Watch dog reset digital core"));break;
+  //         case 8  : p.replace(tok,F("Timer Group1 Watch dog reset digital core"));break;
+  //         case 9  : p.replace(tok,F("RTC Watch dog Reset digital core"));break;
+  //         case 10 : p.replace(tok,F("Instrusion tested to reset CPU"));break;
+  //         case 11 : p.replace(tok,F("Time Group reset CPU"));break;
+  //         case 12 : p.replace(tok,F("Software reset CPU"));break;
+  //         case 13 : p.replace(tok,F("RTC Watch dog Reset CPU"));break;
+  //         case 14 : p.replace(tok,F("for APP CPU, reseted by PRO CPU"));break;
+  //         case 15 : p.replace(tok,F("Reset when the vdd voltage is not stable"));break;
+  //         case 16 : p.replace(tok,F("RTC Watch dog reset digital core and rtc module"));break;
+  //         default : p.replace(tok,F("NO_MEAN"));
+  //       }
+  //     }
+  //   #endif
+  // }
+  // else if(id==F("apip")){
+  //   p = FPSTR(HTTP_INFO_apip);
+  //   p.replace(FPSTR(T_1),WiFi.softAPIP().toString());
+  // }
+  // else if(id==F("apmac")){
+  //   p = FPSTR(HTTP_INFO_apmac);
+  //   p.replace(FPSTR(T_1),(String)WiFi.softAPmacAddress());
+  // }
+  // #ifdef ESP32
+  // else if(id==F("aphost")){
+  //     p = FPSTR(HTTP_INFO_aphost);
+  //     p.replace(FPSTR(T_1),WiFi.softAPgetHostname());
+  // }
+  // #endif
+  // #ifndef WM_NOSOFTAPSSID
+  // #ifdef ESP8266
+  // else if(id==F("apssid")){
+  //   p = FPSTR(HTTP_INFO_apssid);
+  //   p.replace(FPSTR(T_1),htmlEntities(WiFi.softAPSSID()));
+  // }
+  // #endif
+  // #endif
+  // else if(id==F("apbssid")){
+  //   p = FPSTR(HTTP_INFO_apbssid);
+  //   p.replace(FPSTR(T_1),(String)WiFi.BSSIDstr());
+  // }
+  // // softAPgetHostname // esp32
+  // // softAPSubnetCIDR
+  // // softAPNetworkID
+  // // softAPBroadcastIP
+
+  // else if(id==F("stassid")){
+  //   p = FPSTR(HTTP_INFO_stassid);
+  //   p.replace(FPSTR(T_1),htmlEntities((String)WiFi_SSID()));
+  // }
+  // else if(id==F("staip")){
+  //   p = FPSTR(HTTP_INFO_staip);
+  //   p.replace(FPSTR(T_1),WiFi.localIP().toString());
+  // }
+  // else if(id==F("stagw")){
+  //   p = FPSTR(HTTP_INFO_stagw);
+  //   p.replace(FPSTR(T_1),WiFi.gatewayIP().toString());
+  // }
+  // else if(id==F("stasub")){
+  //   p = FPSTR(HTTP_INFO_stasub);
+  //   p.replace(FPSTR(T_1),WiFi.subnetMask().toString());
+  // }
+  // else if(id==F("dnss")){
+  //   p = FPSTR(HTTP_INFO_dnss);
+  //   p.replace(FPSTR(T_1),WiFi.dnsIP().toString());
+  // }
+  // else if(id==F("host")){
+  //   p = FPSTR(HTTP_INFO_host);
+  //   #ifdef ESP32
+  //     p.replace(FPSTR(T_1),WiFi.getHostname());
+  //   #else
+  //   p.replace(FPSTR(T_1),WiFi.hostname());
+  //   #endif
+  // }
+  // else if(id==F("stamac")){
+  //   p = FPSTR(HTTP_INFO_stamac);
+  //   p.replace(FPSTR(T_1),WiFi.macAddress());
+  // }
+  // else if(id==F("conx")){
+  //   p = FPSTR(HTTP_INFO_conx);
+  //   p.replace(FPSTR(T_1),WiFi.isConnected() ? FPSTR(S_y) : FPSTR(S_n));
+  // }
+  // #ifdef ESP8266
+  // else if(id==F("autoconx")){
+  //   p = FPSTR(HTTP_INFO_autoconx);
+  //   p.replace(FPSTR(T_1),WiFi.getAutoConnect() ? FPSTR(S_enable) : FPSTR(S_disable));
+  // }
+  // #endif
+  // #if defined(ESP32) && !defined(WM_NOTEMP)
+  // else if(id==F("temp")){
+  //   // temperature is not calibrated, varying large offsets are present, use for relative temp changes only
+  //   p = FPSTR(HTTP_INFO_temp);
+  //   p.replace(FPSTR(T_1),(String)temperatureRead());
+  //   p.replace(FPSTR(T_2),(String)((temperatureRead()+32)*1.8f));
+  // }
+  // // else if(id==F("hall")){ 
+  // //   p = FPSTR(HTTP_INFO_hall);
+  // //   p.replace(FPSTR(T_1),(String)hallRead()); // hall sensor reads can cause issues with adcs
+  // // }
+  // #endif
+  // else if(id==F("aboutver")){
+  //   p = FPSTR(HTTP_INFO_aboutver);
+  //   p.replace(FPSTR(T_1),FPSTR(WM_VERSION_STR));
+  // }
+  // else if(id==F("aboutarduinover")){
+  //   #ifdef VER_ARDUINO_STR
+  //   p = FPSTR(HTTP_INFO_aboutarduino);
+  //   p.replace(FPSTR(T_1),String(VER_ARDUINO_STR));
+  //   #endif
+  // }
+  // // else if(id==F("aboutidfver")){
+  // //   #ifdef VER_IDF_STR
+  // //   p = FPSTR(HTTP_INFO_aboutidf);
+  // //   p.replace(FPSTR(T_1),String(VER_IDF_STR));
+  // //   #endif
+  // // }
+  // else if(id==F("aboutsdkver")){
+  //   p = FPSTR(HTTP_INFO_sdkver);
+  //   #ifdef ESP32
+  //     p.replace(FPSTR(T_1),(String)esp_get_idf_version());
+  //     // p.replace(FPSTR(T_1),(String)system_get_sdk_version()); // deprecated
+  //   #else
+  //   p.replace(FPSTR(T_1),(String)system_get_sdk_version());
+  //   #endif
+  // }
+  // else if(id==F("aboutdate")){
+  //   p = FPSTR(HTTP_INFO_aboutdate);
+  //   p.replace(FPSTR(T_1),String(__DATE__ " " __TIME__));
+  // }
   return p;
 }
 
@@ -2466,7 +2465,6 @@ void WiFiManager::handleErase(boolean opt) {
   DEBUG_WM(DEBUG_NOTIFY,F("<- HTTP Erase"));
   #endif
   handleRequest();
-  String page = getHTTPHead(FPSTR(S_titleerase)); // @token titleerase
 
   bool ret = erase(opt);
 

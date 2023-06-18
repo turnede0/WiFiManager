@@ -51,7 +51,6 @@ const char R_wifi[]               PROGMEM = "/wifi";
 const char R_wifinoscan[]         PROGMEM = "/0wifi";
 const char R_wifisave[]           PROGMEM = "/wifisave";
 const char R_info[]               PROGMEM = "/info";
-const char R_infojson[]           PROGMEM = "/infoJson";
 const char R_param[]              PROGMEM = "/param";
 const char R_paramsave[]          PROGMEM = "/paramsave";
 const char R_restart[]            PROGMEM = "/restart";
